@@ -210,7 +210,7 @@ static void computeFees(txInt256_t *BEgasPrice, txInt256_t *BEgasLimit, uint256_
 }
 
 static void feesToString(uint256_t *rawFee, char *displayBuffer, uint32_t displayBufferSize) {
-    char *feeTicker = get_network_ticker();
+    char *feeTicker = "TFUEL";
     uint8_t tickerOffset = 0;
     uint32_t i;
 
@@ -317,7 +317,7 @@ static void get_public_key(uint8_t *out, uint8_t outLength) {
 void finalizeParsing(bool direct) {
     char displayBuffer[50];
     uint8_t decimals = WEI_TO_ETHER;
-    char *ticker = get_network_ticker();
+    char *ticker = tmpContent.txContent.thetaCoinName ? "THETA" : "TFUEL";
     ethPluginFinalize_t pluginFinalize;
     bool genericUI = true;
 
