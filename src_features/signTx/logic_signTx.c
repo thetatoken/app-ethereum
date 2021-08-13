@@ -454,7 +454,9 @@ void finalizeParsing(bool direct) {
     }
 
     // Prepare amount to display
-    if (genericUI && tmpContent.txContent.thetaTxType != THETA_STAKE_Withdraw) {
+    if (tmpContent.txContent.thetaTxType == THETA_STAKE_Withdraw) {
+        strings.common.fullAmount[0] = '\0';
+    } else if (genericUI) {
         amountToString(tmpContent.txContent.value.value,
                        tmpContent.txContent.value.length,
                        decimals,
