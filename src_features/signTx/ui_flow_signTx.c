@@ -211,6 +211,9 @@ void ux_approve_tx(bool fromPlugin) {
         ux_approval_tx_flow[step++] = &ux_plugin_approval_before_step;
         ux_approval_tx_flow[step++] = &ux_plugin_approval_display_step;
         ux_approval_tx_flow[step++] = &ux_plugin_approval_after_step;
+    } else if (tmpContent.txContent.thetaTxType == THETA_STAKE_Withdraw) {
+        // skip amount and keep the address for withdraw stake tx
+        ux_approval_tx_flow[step++] = &ux_approval_address_step;
     } else {
         // We're in a regular transaction, just show the amount and the address
         ux_approval_tx_flow[step++] = &ux_approval_amount_step;
