@@ -76,6 +76,29 @@ void copyTxData(txContext_t *context, uint8_t *out, uint32_t length) {
     }
 }
 
+void decodeSmartTxGas(txContext_t *context, uint8_t *rlpP) {
+    uint32_t offset, tmpCurrentFieldLength;
+    bool tmpCurrentFieldIsList, decoded;
+    if (*rlpP++ != 128 || *rlpP++ != 128) {
+        THROW(EXCEPTION);
+    }
+    decoded = rlpDecodeLength(rlpP, &tmpCurrentFieldLength, &offset, &tmpCurrentFieldIsList);
+    if (tmpCurrentFieldLength > INT256_LENGTH) {
+        THROW(EXCEPTION);
+    }
+    rlpP += offset;
+    memmove(context->content->startgas.value, rlpP, tmpCurrentFieldLength); // copy gas Limit                          
+    context->content->startgas.length = tmpCurrentFieldLength;
+    rlpP += tmpCurrentFieldLength;
+    decoded = rlpDecodeLength(rlpP, &tmpCurrentFieldLength, &offset, &tmpCurrentFieldIsList);
+    if (tmpCurrentFieldLength > INT256_LENGTH) {
+        THROW(EXCEPTION);
+    }
+    rlpP += offset;
+    memmove(context->content->gasprice.value, rlpP, tmpCurrentFieldLength); // copy gas Price                          
+    context->content->gasprice.length = tmpCurrentFieldLength;
+}
+
 void decodeThetaTxValue(txContext_t *context, uint8_t *rlpP) {
     uint32_t offset, tmpCurrentFieldLength;
     bool tmpCurrentFieldIsList, decoded;
@@ -95,12 +118,15 @@ void decodeThetaTxValue(txContext_t *context, uint8_t *rlpP) {
 }
 
 void decodeThetaTxAddressAndValue(txContext_t *context, uint8_t *rlpP, uint32_t length) {
-    bool stakeTx = context->content->thetaTxType == THETA_STAKE_TX;
-    uint32_t offset = stakeTx ? 2 : 3;
+    uint32_t offset = context->content->thetaTxType == THETA_SEND_TX ? 3 : 2;
     rlpP += offset;
     memmove(context->content->destination, rlpP, ADDRESS_LENGTH); // copy address
-    if (!stakeTx) {
-        decodeThetaTxValue(context, rlpP + ADDRESS_LENGTH + 1);
+    rlpP += ADDRESS_LENGTH + 1;
+    if (context->content->thetaTxType == THETA_SEND_TX) {
+        decodeThetaTxValue(context, rlpP);
+    }
+    if (context->content->thetaTxType == THETA_SMART_CONTRACT) {
+        decodeSmartTxGas(context, rlpP);
     }
     context->content->thetaDecodeSatus = THETATX_FINISHED;
 }
@@ -110,6 +136,7 @@ void decodeThetaTx(txContext_t *context, uint32_t length) {
         PRINTF("copyTxData Underflow\n");
         THROW(EXCEPTION);
     }
+    PRINTF("decodeThetaTx %.*H\n", length, context->workBuffer);
     uint32_t offset, tmpCurrentFieldLength;
     bool decoded, tmpCurrentFieldIsList;
     uint8_t *rlpP = context->workBuffer, *tmpRLPPointer;
@@ -122,29 +149,31 @@ void decodeThetaTx(txContext_t *context, uint32_t length) {
                 rlpP++;
                 length -= offset + tmpCurrentFieldLength + 1;
                 decoded = rlpDecodeLength(rlpP, &tmpCurrentFieldLength, &offset, &tmpCurrentFieldIsList);
-                rlpP += offset + 2;
-                length -= offset + 2;
-                decoded = rlpDecodeLength(rlpP, &tmpCurrentFieldLength, &offset, &tmpCurrentFieldIsList);
-                if (tmpCurrentFieldLength > INT256_LENGTH) {
-                    THROW(EXCEPTION);
+                rlpP += offset;
+                length -= offset;
+                if (context->content->thetaTxType != THETA_SMART_CONTRACT) { // decode gas
+                    rlpP += 2;
+                    length -= 2;
+                    decoded = rlpDecodeLength(rlpP, &tmpCurrentFieldLength, &offset, &tmpCurrentFieldIsList);
+                    if (tmpCurrentFieldLength > INT256_LENGTH) {
+                        THROW(EXCEPTION);
+                    }
+                    rlpP += offset;
+                    memmove(context->content->startgas.value, rlpP, tmpCurrentFieldLength); // copy gas
+                    context->content->startgas.length = tmpCurrentFieldLength;
+                    context->content->gasprice.value[0] = 1;    // set gas price to 1
+                    context->content->gasprice.length = 1;
+                    rlpP += tmpCurrentFieldLength;
+                    length -= offset + tmpCurrentFieldLength;
                 }
-                rlpP += offset;
-                memmove(context->content->startgas.value, rlpP, tmpCurrentFieldLength); // copy gas
-                context->content->startgas.length = tmpCurrentFieldLength;
-                context->content->gasprice.value[0] = 1;    // set gas price to 1
-                context->content->gasprice.length = 1;
-                rlpP += tmpCurrentFieldLength;
-                length -= offset + tmpCurrentFieldLength;
-
                 decoded = rlpDecodeLength(rlpP, &tmpCurrentFieldLength, &offset, &tmpCurrentFieldIsList);
                 rlpP += offset;
-                if (context->content->thetaTxType == THETA_STAKE_TX) { // decode value for staking tx
+                if (context->content->thetaTxType == THETA_STAKE_Deposit) { // decode value for deposit stake tx
                     tmpRLPPointer = rlpP + ADDRESS_LENGTH + 2;
                     decodeThetaTxValue(context, tmpRLPPointer);
                 }
                 rlpP += tmpCurrentFieldLength;
                 length -= offset + tmpCurrentFieldLength;
-
                 decoded = rlpDecodeLength(rlpP, &tmpCurrentFieldLength, &offset, &tmpCurrentFieldIsList);
                 if (tmpCurrentFieldLength + offset > length) {   // Not enought bytes to decode address/value
                     context->content->thetaDecodeSatus = THETATX_PROCESSING;

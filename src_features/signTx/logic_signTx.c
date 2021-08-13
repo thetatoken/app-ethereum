@@ -454,7 +454,7 @@ void finalizeParsing(bool direct) {
     }
 
     // Prepare amount to display
-    if (genericUI) {
+    if (genericUI && tmpContent.txContent.thetaTxType != THETA_STAKE_Withdraw) {
         amountToString(tmpContent.txContent.value.value,
                        tmpContent.txContent.value.length,
                        decimals,

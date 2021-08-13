@@ -39,7 +39,10 @@ typedef customStatus_e (*ustreamProcess_t)(struct txContext_t *context);
 #define ADDRESS_LENGTH 20
 #define INT256_LENGTH  32
 #define THETA_BUFFER_LENGTH  100
-#define THETA_STAKE_TX  10
+#define THETA_SEND_TX 2
+#define THETA_SMART_CONTRACT 7
+#define THETA_STAKE_Withdraw 9
+#define THETA_STAKE_Deposit 10
 
 // First variant of every Tx enum.
 #define RLP_NONE 0
